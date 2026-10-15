@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Datenerfassung chinesischer Antragsteller</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" href="https://cdn.bootcss.com/bootstrap/4.3.1/css/bootstrap.min.css">
+	<script src="https://cdn.bootcss.com/jquery/3.2.1/jquery.min.js"></script>
+	<script src="https://cdn.bootcss.com/popper.js/1.15.0/umd/popper.min.js"></script>
+	<script src="https://cdn.bootcss.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+	<!-- <script src="./script/handwriting.canvas.js"></script> -->
+	<script src="https://cdn.jsdelivr.net/npm/pinyin-pro"></script>
+
+	<script>
+	(function(window, document) {
+
+		// Establish the root object, `window` (`self`) in the browser, 
+		// or `this` in some virtual machines. We use `self`
+		// instead of `window` for `WebWorker` support.
+		var root = typeof self === 'object' && self.self === self && self || this;
+
+		// Create a safe reference to the handwriting object for use below.        
+		var handwriting = function(obj) {
+			if (obj instanceof handwriting) return obj;
+			if (!(this instanceof handwriting)) return new handwriting(obj);
+			this._wrapped = obj;
+		};
+
+		root.handwriting = handwriting;
+
+		handwriting.Canvas = function(cvs, lineWidth) {
+			this.canvas = cvs;
+			this.cxt = cvs.getContext("2d");
+			this.cxt.lineCap = "round";
+			this.cxt.lineJoin = "round";
+			this.lineWidth = lineWidth || 3;
+			this.width = cvs.width;
+			this.height = cvs.height;
+			this.drawing = false;
+			this.handwritingX = [];
+			this.handwritingY = [];
+			this.trace = [];
+			this.options = {};
+			this.step = [];
+			this.redo_step = [];
+			this.redo_trace = [];
+			this.allowUndo = false;
+			this.allowRedo = false;
+			cvs.addEventListener("mousedown", this.mouseDown.bind(this));
+			cvs.addEventListener("mousemove", this.mouseMove.bind(this));
+			cvs.addEventListener("mouseup", this.mouseUp.bind(this));
+			cvs.addEventListener("touchstart", this.touchStart.bind(this));
+			cvs.addEventListener("touchmove", this.touchMove.bind(this));
+			cvs.addEventListener("touchend", this.touchEnd.bind(this));
+			this.callback = undefined;
+			this.recognize = handwriting.recognize;
+		};
+		/**
+		 * [toggle_Undo_Redo description]
+		 * @return {[type]} [description]
+		 */
+		handwriting.Canvas.prototype.set_Undo_Redo = function(undo, redo) {
+			this.allowUndo = undo;
+			this.allowRedo = undo ? redo : false;
+			if (!this.allowUndo) {
+				this.step = [];
+				this.redo_step = [];
+				this.redo_trace = [];
+			}
+		};
+
+		handwriting.Canvas.prototype.setLineWidth = function(lineWidth) {
+			this.lineWidth = lineWidth;
+		};
+
+		handwriting.Canvas.prototype.setCallBack = function(callback) {
+			this.callback = callback;
+		};
+
+		handwriting.Canvas.prototype.setOptions = function(options) {
+			this.options = options;
+		};
+
+
+		handwriting.Canvas.prototype.mouseDown = function(e) {
+			// new stroke
+			this.cxt.lineWidth = this.lineWidth;
+			this.handwritingX = [];
+			this.handwritingY = [];
+			this.drawing = true;
+			this.cxt.beginPath();
+			var rect = this.canvas.getBoundingClientRect();
+			var x = e.clientX - rect.left;
+			var y = e.clientY - rect.top;
+			this.cxt.moveTo(x, y);
+			this.handwritingX.push(x);
+			this.handwritingY.push(y);
+		};
+
+
+		handwriting.Canvas.prototype.mouseMove = function(e) {
+			if (this.drawing) {
+				var rect = this.canvas.getBoundingClientRect();
+				var x = e.clientX - rect.left;
+				var y = e.clientY - rect.top;
+				this.cxt.lineTo(x, y);
+				this.cxt.stroke();
+				this.handwritingX.push(x);
+				this.handwritingY.push(y);
+			}
+		};
+
+		handwriting.Canvas.prototype.mouseUp = function() {
+			var w = [];
+			w.push(this.handwritingX);
+			w.push(this.handwritingY);
+			w.push([]);
+			this.trace.push(w);
+			this.drawing = false;
+			if (this.allowUndo) this.step.push(this.canvas.toDataURL());
+		};
+
+
+		handwriting.Canvas.prototype.touchStart = function(e) {
+			e.preventDefault();
+			this.cxt.lineWidth = this.lineWidth;
+			this.handwritingX = [];
+			this.handwritingY = [];
+			var de = document.documentElement;
+			var box = this.canvas.getBoundingClientRect();
+			var top = box.top + window.pageYOffset - de.clientTop;
+			var left = box.left + window.pageXOffset - de.clientLeft;
+			var touch = e.changedTouches[0];
+			touchX = touch.pageX - left;
+			touchY = touch.pageY - top;
+			this.handwritingX.push(touchX);
+			this.handwritingY.push(touchY);
+			this.cxt.beginPath();
+			this.cxt.moveTo(touchX, touchY);
+		};
+
+		handwriting.Canvas.prototype.touchMove = function(e) {
+			e.preventDefault();
+			var touch = e.targetTouches[0];
+			var de = document.documentElement;
+			var box = this.canvas.getBoundingClientRect();
+			var top = box.top + window.pageYOffset - de.clientTop;
+			var left = box.left + window.pageXOffset - de.clientLeft;
+			var x = touch.pageX - left;
+			var y = touch.pageY - top;
+			this.handwritingX.push(x);
+			this.handwritingY.push(y);
+			this.cxt.lineTo(x, y);
+			this.cxt.stroke();
+		};
+
+		handwriting.Canvas.prototype.touchEnd = function(e) {
+			var w = [];
+			w.push(this.handwritingX);
+			w.push(this.handwritingY);
+			w.push([]);
+			this.trace.push(w);
+			if (this.allowUndo) this.step.push(this.canvas.toDataURL());
+		};
+
+		handwriting.Canvas.prototype.undo = function() {
+			if (!this.allowUndo || this.step.length <= 0) return;
+			else if (this.step.length === 1) {
+				if (this.allowRedo) {
+					this.redo_step.push(this.step.pop());
+					this.redo_trace.push(this.trace.pop());
+					this.cxt.clearRect(0, 0, this.width, this.height);
+				}
+			} else {
+				if (this.allowRedo) {
+					this.redo_step.push(this.step.pop());
+					this.redo_trace.push(this.trace.pop());
+				} else {
+					this.step.pop();
+					this.trace.pop();
+				}
+				loadFromUrl(this.step.slice(-1)[0], this);
+			}
+		};
+
+		handwriting.Canvas.prototype.redo = function() {
+			if (!this.allowRedo || this.redo_step.length <= 0) return;
+			this.step.push(this.redo_step.pop());
+			this.trace.push(this.redo_trace.pop());
+			loadFromUrl(this.step.slice(-1)[0], this);
+		};
+
+		handwriting.Canvas.prototype.erase = function() {
+			this.cxt.clearRect(0, 0, this.width, this.height);
+			this.step = [];
+			this.redo_step = [];
+			this.redo_trace = [];
+			this.trace = [];
+		};
+
+		function loadFromUrl(url, cvs) {
+			var imageObj = new Image();
+			imageObj.onload = function() {
+				cvs.cxt.clearRect(0, 0, this.width, this.height);
+				cvs.cxt.drawImage(imageObj, 0, 0);
+			};
+			imageObj.src = url;
+		}
+
+		handwriting.recognize = function(trace, options, callback) {
+			if (handwriting.Canvas && this instanceof handwriting.Canvas) {
+				trace = this.trace;
+				options = this.options;
+				callback = this.callback;
+			} else if (!options) options = {};
+			var data = JSON.stringify({
+				"options": "enable_pre_space",
+				"requests": [{
+					"writing_guide": {
+						"writing_area_width": options.width || this.width || undefined,
+						"writing_area_height": options.height || this.width || undefined
+					},
+					"ink": trace,
+					"language": options.language || "zh_TW"
+				}]
+			});
+			var xhr = new XMLHttpRequest();
+			xhr.addEventListener("readystatechange", function() {
+				if (this.readyState === 4) {
+					switch (this.status) {
+						case 200:
+							var response = JSON.parse(this.responseText);
+							var results;
+							if (response.length === 1) callback(undefined, new Error(response[0]));
+							else results = response[1][0][1];
+							if (!!options.numOfWords) {
+								results = results.filter(function(result) {
+									return (result.length == options.numOfWords);
+								});
+							}
+							if (!!options.numOfReturn) {
+								results = results.slice(0, options.numOfReturn);
+							}
+							callback(results, undefined);
+							break;
+						case 403:
+							callback(undefined, new Error("access denied"));
+							break;
+						case 503:
+							callback(undefined, new Error("can't connect to recognition server"));
+							break;
+					}
+
+
+				}
+			});
+			xhr.open("POST", "https://www.google.com.tw/inputtools/request?ime=handwriting&app=mobilesearch&cs=1&oe=UTF-8");
+			xhr.setRequestHeader("content-type", "application/json");
+			xhr.send(data);
+		};
+
+	})(window, document);
+</script>
+
+</head>
+
+
+<body>
+
+	<div class="jumbotron jumbotron-fluid">
+		<div class="container-fluid">
+			
+			<h3>Erfassung Grunddaten chinesischer Antragsteller</h3>
+			<div class="p-2 mb-2">
+				<h4>1.姓名/Name</h4>
+				<h5>请用简体中文在方框中写入姓名</h5>
+				<canvas id="canvas" width="360" height="120" style="border:1px solid #000;"></canvas>
+				
+				<div class="row">
+					<div id="name_erkennen" class="col-sm-6 col-md-4 mb-2"><button type="button" class="btn btn-primary" style="">Name erkennen</button></div>
+					<div id="name_loeschen" class="col-sm-6 col-md-8"><button type="button" class="btn btn-primary" style="">Löschen</button></div>
+				</div>
+				
+				<div class="row d-none name">
+					<div id="name_cn" class="col-sm-4 col-md-3">姓名：</div>
+					<div id="nachname_cn" class="col-sm-4 col-md-3">姓：</div>
+					<div id="vorname_cn" class="col-sm-4 col-md-6">名：</div>
+				</div>
+
+				<div class="row d-none name">
+					<div id="nachname" class="col-sm-6 col-md-4">Nachname/Familienname:</div>
+					<div id="vorname" class="col-sm-6 col-md-8">Vorname:</div>
+				</div>
+			</div>
+			
+			
+			
+			
+			<div class="p-2 mb-2">
+				<h4>2.出生年月日 Geburtsdatum</h4>
+				<div class="form-row">
+					<div class="col-4">
+						<select class="selYear geburtsdatum form-control" >
+							<option value="" selected disabled hidden>年/Jahr</option>
+						</select>
+					</div>
+					<div class="col-4">
+						<select class="selMonth geburtsdatum form-control">
+							<option value="" selected disabled hidden>月/Monat</option>
+						</select>
+					</div>
+					<div class="col-4">
+						<select class="selDay geburtsdatum form-control">
+							<option value=""  selected disabled hidden>日/Tag</option>
+						</select>
+					</div>
+				</div>
+				<div class="">
+					<button type="button" class="btn btn-primary datum_loeschen geburtsdatum" style="">Löschen</button>
+				</div>
+				<div class="geburtsdatum show d-none">
+					<div id="geburtsdatum_cn" class="col-sm-6 col-md-4">出生年月日：</div>
+					<div id="geburtsdatum_de" class="col-sm-6 col-md-8">Geburtsdatum:</div>
+				</div>
+			</div>
+			
+			
+			
+			
+			
+			<div class="p-2 mb-2">
+				<h4>3.出生地（只选省份） Geburtsort</h4>
+
+				<button id="btn_sel_geburtsort" type="button" class="btn btn-primary" data-toggle="collapse" data-target="#sel_geburtsort" >请选择出生地 / Geburtsort auswählen</button>
+			
+				<div id="sel_geburtsort" class="collapse">
+					<div class="collapse d-flex flex-wrap align-items-center mt-3">
+					</div>
+				</div>
+				<div class="d-none geburtsort">
+					<div id="geburtsort_cn" class="col-sm-6 col-md-4"></div>
+					<div id="geburtsort_en" class="col-sm-6 col-md-8"></div>
+				</div>
+			</div>
+			
+			
+			<div class="p-2 mb-2">
+				<h4>4.入境德国的日期 Einreisedatum in Deutschland</h4>
+				<div class="form-row">
+					<div class="col-4">
+						<select class="selYear einreisesatum_de form-control" >
+							<option value="" selected disabled hidden>年/Jahr</option>
+						</select>
+					</div>
+					<div class="col-4">
+						<select class="selMonth einreisesatum_de form-control">
+							<option value="" selected disabled hidden>月/Monat</option>
+						</select>
+					</div>
+					<div class="col-4">
+						<select class="selDay einreisesatum_de form-control">
+							<option value=""  selected disabled hidden>日/Tag</option>
+						</select>
+					</div>
+				</div>
+				<div class="">
+					<button type="button" class="btn btn-primary datum_loeschen einreisesatum_de" style="">Löschen</button>
+				</div>
+				<div class="einreisesatum_de show d-none">
+					<div id="einreisesatum_de_cn" class="col-sm-6 col-md-4">入境德国的日期：</div>
+					<div id="einreisesatum_de_de" class="col-sm-6 col-md-8">Einreisedatum in Deutschland: </div>
+				</div>
+			</div>
+			
+			
+			<div class="p-2 mb-2">
+				<h4>5.您到达德国的旅途中，第一个进入的欧盟/申根国家是哪个？In welches EU-/Schengen-Land sind Sie auf Ihrer Reise nach Deutschland ZUERST eingereist?</h4>
+
+				<button id="btn_sel_erst_eu_schengen_land" type="button" class="btn btn-primary" data-toggle="collapse" data-target="#sel_erst_eu_schengen_land" >请选择第一个进入的欧盟/申根国家 EU-/Schengenland auswählen</button>
+			
+				<div id="sel_erst_eu_schengen_land" class="collapse">
+					<div class="collapse d-flex flex-wrap align-items-center mt-3">
+					</div>
+				</div>
+				<div class="d-none erst_eu_schengen_land">
+					<div id="erst_eu_schengen_land_cn" class="col-sm-6 col-md-4"></div>
+					<div id="erst_eu_schengen_land_de" class="col-sm-6 col-md-8"></div>
+				</div>
+			</div>	
+			
+			
+			<div class="p-2 mb-2 " id="einreisesatum_eu">
+				<h4>6.入境第一个欧盟/申根国家的日期 Einreisedatum in erstes eingereistes EU-/Schengen-Land</h4>
+				<div class="form-row">
+					<div class="col-4">
+						<select class="selYear einreisesatum_eu form-control" >
+							<option value="" selected disabled hidden>年/Jahr</option>
+						</select>
+					</div>
+					<div class="col-4">
+						<select class="selMonth einreisesatum_eu form-control">
+							<option value="" selected disabled hidden>月/Monat</option>
+						</select>
+					</div>
+					<div class="col-4">
+						<select class="selDay einreisesatum_eu form-control">
+							<option value=""  selected disabled hidden>日/Tag</option>
+						</select>
+					</div>
+				</div>
+				<div class="">
+					<button type="button" class="btn btn-primary datum_loeschen einreisesatum_eu" style="">Löschen</button>
+				</div>
+				<div class="einreisesatum_eu show d-none">
+					<div id="einreisesatum_eu_cn" class="col-sm-6 col-md-4">入境第一个欧盟/申根国家的日期 ：</div>
+					<div id="einreisesatum_eu_de" class="col-sm-6 col-md-8">Einreisedatum in erstes eingereistes EU-/Schengen-Land: </div>
+				</div>
+			</div>		
+			
+			
+			
+			
+		</div>
+		
+		
+		
+		
+		
+	</div>
+	
+
+	
+	<script>
+	var allCompoundSurname = ["欧阳", "上官", "皇甫", "令狐", "诸葛", "司徒", "司马", "申屠", "夏侯", "贺兰", "完颜", "慕容", "尉迟", "长孙", "公孙", "东方"];
+	var provinzenChina = [{"cn":"辽宁省", "en":"LIAONING"}, {"cn":"吉林省", "en":"JILIN"}, {"cn":"黑龙江省", "en":"HEILONGJANG"}, {"cn":"河南省", "en":"HENAN"},
+		{"cn":"山东省", "en":"SHANDONG"}, {"cn":"江西省", "en":"JIANGXI"}, {"cn":"湖南省", "en":"HUNAN"}, {"cn":"福建省", "en":"FUJIAN"},
+		{"cn":"河北省", "en":"HEBEI"}, {"cn":"湖北省", "en":"HUBEI"},  {"cn":"江苏省", "en":"JIANGSU"}, {"cn":"四川省", "en":"SICHUAN"},
+		{"cn":"新疆维吾尔自治区", "en":"XINJIANG"}, {"cn":"陕西省", "en":"SHAANXI"}, {"cn":"广东省", "en":"GUANGDONG"}, {"cn":"广西壮族自治区", "en":"GUANGXI"},
+		{"cn":"浙江省", "en":"ZHEJIANG"}, {"cn":"安徽省", "en":"ANHUI"}, {"cn":"贵州省", "en":"GUIZHOU"}, {"cn":"山西省", "en":"SHANXI"},
+		{"cn":"云南省", "en":"YUNNAN"}, {"cn":"重庆市", "en":"CHONGQING"}, {"cn":"天津市", "en":"TIANJIN"}, {"cn":"甘肃省", "en":"GANSU"},
+		{"cn":"青海省", "en":"QINGHAI"}, {"cn":"西藏自治区", "en":"XIZANG"}, {"cn":"内蒙古自治区", "en":"NEI MONGOL"}, {"cn":"海南省", "en":"HAINAN"},
+		{"cn":"北京市", "en":"BEIJING"}, {"cn":"上海市", "en":"SHANGHAI"}, {"cn":"宁夏回族自治区", "en":"NINGXIA"}
+	]
+	
+	var euUndSchengenLand = [ {"de":"Deutschland", "cn":"德国"}, {"de":"Kroatien", "cn":"克罗地亚"}, {"de":"Italien", "cn":"意大利"}, {"de":"Griechenland", "cn":"希腊"},
+			{"de":"Slowenien", "cn":"斯洛文尼亚"}, {"de":"Frankreich", "cn":"法国"}, {"de":"Spanien", "cn":"西班牙"}, {"de":"Niederlande", "cn":"荷兰"},
+			{"de":"Belgien", "cn":"比利时"}, {"de":"Ungarn", "cn":"匈牙利"}, {"de":"Bulgarien", "cn":"保加利亚"}, {"de":"Schweiz", "cn":"瑞士"},
+			{"de":"Österreich", "cn":"奥地利"}, {"de":"Polen", "cn":"波兰"}, {"de":"Portugal", "cn":"葡萄牙"}, {"de":"Rumänien", "cn":"罗马尼亚"},
+			{"de":"Tschechien", "cn":"捷克"}, {"de":"Slowakei", "cn":"斯洛伐克"}, {"de":"Schweden", "cn":"瑞典"}, {"de":"Dänemark", "cn":"丹麦"},
+			{"de":"Norwegen", "cn":"挪威"}, {"de":"Finnland", "cn":"芬兰"}, {"de":"Island", "cn":"冰岛"}, {"de":"Luxemburg", "cn":"卢森堡"}, 
+			{"de":"Liechtenstein", "cn":"列支敦士登"}, {"de":"Malta", "cn":"马耳他"}, {"de":"Estland", "cn":"爱沙尼亚"}, {"de":"Lettland", "cn":"拉脱维亚"},
+			{"de":"Litauen", "cn":"立陶宛"}, {"de":"Zypern", "cn":"塞浦路斯"}, {"de":"Irland", "cn":"爱尔兰"},
+			
+	];
+	
+	var dataAS = {};
+	const canvasElement = document.getElementById('canvas');
+	const canvas = new handwriting.Canvas(canvasElement, 2);
+	
+	canvas.setOptions({
+		language: 'zh_CN',
+	});
+	
+	
+	$(document).ready(function(){
+		
+		
+		$(document).on('click', '#name_erkennen', function(event){
+			const { pinyin } = pinyinPro;
+			canvas.setCallBack(function(result, err) {
+                if (err) {
+                    console.error("识别出错:", err);
+                    document.getElementById('output').innerText = "Fehler bei der Texterkennung!";
+                    return;
+                }
+                
+                // result 是一个数组，包含了最可能的识别结果和候选项
+                if (result && result.length > 0) {
+					if(result[0].length < 2){
+						alert("姓名至少两个字！\n Chinesischer Name besteht aus mindestens zwei Zeichen!");
+					} else{
+						console.log("result", result);
+						let fullName = result[0];
+						
+						if(allCompoundSurname.includes(fullName.substr(0, 2))){
+							dataAS['NachnameCN'] = fullName.substring(0, 2);
+							dataAS['VornameCN'] = fullName.substring(2);
+						} else{
+							dataAS['NachnameCN'] = fullName.substring(0, 1);
+							dataAS['VornameCN'] = fullName.substring(1);
+						}
+						
+						
+						let nachname = pinyin(dataAS['NachnameCN'], { toneType: 'none' });
+						let vorname = pinyin(dataAS['VornameCN'], { toneType: 'none' });
+						nachname = nachname.replaceAll("lüe", "lue").replaceAll("nüe", "nue").replaceAll("lü", "lyu").replaceAll("nü", "nyu");
+						vorname = vorname.replaceAll("lüe", "lue").replaceAll("nüe", "nue").replaceAll("lü", "lyu").replaceAll("nü", "nyu");
+						nachname = nachname.replace(/\s+/g, '');
+						vorname = vorname.replace(/\s+/g, '');
+						
+						dataAS['Nachname'] = nachname.charAt(0).toUpperCase() + nachname.slice(1);
+						dataAS['Vorname'] = vorname.charAt(0).toUpperCase() + vorname.slice(1);;
+						
+						console.log("姓：", dataAS['NachnameCN']);
+						console.log("名：", dataAS['VornameCN']);
+						console.log("Nachname:", dataAS['Nachname']);
+						console.log("Vorname:", dataAS['Vorname']);
+						
+						$(".name").removeClass("d-none");
+						$("#name_cn").text("姓名："+dataAS['NachnameCN']+dataAS['VornameCN']);
+						$("#nachname_cn").text("姓："+dataAS['NachnameCN']);
+						$("#vorname_cn").text("名："+dataAS['VornameCN']);
+						
+						
+						$("#nachname").text("Nachname/Familienname: "+dataAS['Nachname']);
+						$("#vorname").text("Vorname: "+dataAS['Vorname']);
+						
+						console.log("dataAS", dataAS);
+					}
+
+                } else {
+					$("#nachname_cn").text("Kein Text gefunden!");
+					delete dataAS['Nachname']; delete dataAS['Vorname'];
+                }
+			});
+			canvas.recognize();	
+			
+		});
+		
+		$(document).on('click', '#name_loeschen', function(event){
+			canvas.erase(); // 清空画布并重置内部轨迹数据
+			$("#nachname_cn").text("姓：");
+			$(".name").addClass("d-none");
+			delete dataAS['Nachname']; delete dataAS['Vorname'];
+		});
+		
+		
+		$(document).on('mousedown', '.selYear', function(event){
+			//console.log("Hahaha");
+			$(this).empty();
+			$(this).append('<option value="" selected disabled hidden>年/Jahr</option>');
+			const thisYear = new Date().getFullYear();
+			let startYear;
+			if($(this).hasClass('geburtsdatum')){
+				startYear = 1940;
+			} else {
+				startYear = 1990;
+			}
+			for(let i=startYear; i<=thisYear; i++){
+				//console.log(i);
+				$(this).append('<option value="'+i+'">'+i+'</option>');
+			}
+			
+		});
+
+		$(document).on('mousedown', '.selMonth', function(event){
+			$(this).empty();
+			$(this).append('<option value="" selected disabled hidden>月/Monat</option>');
+			for(let i=1; i<=12; i++){
+				//console.log(i);
+				$(this).append('<option value="'+i+'">'+i+'</option>');
+			}
+		});
+		
+		$(document).on('mousedown', '.selDay', function(event){
+			$(this).empty();
+			$(this).append('<option value=""  selected disabled hidden>日/Tag</option>');
+			let selYearElement = $(this).parent().prev().prev().find('select')
+			let selMonthElement = $(this).parent().prev().find('select')
+			console.log("Year", selYearElement.val());
+			console.log("Month", selMonthElement.val());
+			
+			if(selYearElement.val()===null || selMonthElement.val()===null){
+				alert("请先选择年份和月份！\n Zuerst Geburtsjahr und -monat auswählen!");
+			} else{
+				let daysOfthisMonth = Number(new Date(selYearElement.val(), selMonthElement.val(), 0).getDate());
+				console.log(daysOfthisMonth);
+				for(let i=1; i<=daysOfthisMonth; i++){
+					//console.log(i);
+					$(this).append('<option value="'+i+'">'+i+'</option>');
+				}
+			}
+
+		});
+		
+		$(document).on('change', '.selDay', function(event){
+			let selYearElement = $(this).parent().prev().prev().find('select');
+			let selMonthElement = $(this).parent().prev().find('select');
+			console.log(selYearElement.val()+"年"+selMonthElement.val()+"月"+$(this).val()+"日");
+			let datumTyp = $(this).attr('class').split(' ')[1];
+			console.log("datumTyp", datumTyp);
+			if($(this).hasClass(datumTyp)){
+				$("div.show."+datumTyp).removeClass("d-none");
+				let txtPreDatumCN = $("#"+datumTyp+"_cn").text().substring(0, $("#"+datumTyp+"_cn").text().indexOf("：")+1);
+				$("#"+datumTyp+"_cn").text(txtPreDatumCN + selYearElement.val()+"年"+selMonthElement.val()+"月"+$(this).val()+"日");
+				let txtPreDatumDE = $("#"+datumTyp+"_de").text().substring(0, $("#"+datumTyp+"_de").text().indexOf(":")+1);
+				$("#"+datumTyp+"_de").text(txtPreDatumDE + " "+ $(this).val()+"."+selMonthElement.val()+"."+selYearElement.val());
+				dataAS[datumTyp] = $(this).val()+"."+selMonthElement.val()+"."+selYearElement.val();
+			}
+			console.log("dataAS", dataAS);
+		});
+		
+		$(document).on('click', '.datum_loeschen', function(event){
+			let selYearElement = $(this).parent().prev().children().eq(0).find('select');
+			let selMonthElement = $(this).parent().prev().children().eq(1).find('select');
+			let selDayElement = $(this).parent().prev().children().eq(2).find('select');
+			let showDateElement = $(this).parent().next("div");
+			let showDateElementCN = $(this).parent().children().eq(0).next("div");
+			let showDateElementDE = $(this).parent().children().eq(0).next("div");
+			let datumTyp = $(this).attr('class').split(' ')[3];
+			
+			console.log(selYearElement.val()+"年"+selMonthElement.val()+"月"+selDayElement.val()+"日");
+			showDateElement.addClass("d-none");
+			selYearElement.empty();
+			selYearElement.append('<option value="" selected disabled hidden>年/Jahr</option>');
+			selMonthElement.empty();
+			selMonthElement.append('<option value="" selected disabled hidden>月/Monat</option>')
+			selDayElement.empty();
+			selDayElement.append('<option value=""  selected disabled hidden>日/Tag</option>');
+			
+			delete dataAS[datumTyp];
+			console.log("dataAS", dataAS);
+		});	
+
+		$(document).on('click', '#btn_sel_geburtsort', function(event){
+			$("#sel_geburtsort").children('div:first').empty();
+			for(let i=0; i<provinzenChina.length; i++){
+				//console.log(provinzenChina[i]);
+				$("#sel_geburtsort").children('div:first').append('<button data-id="'+ i +'"class="geburtsort badge badge-pill badge-secondary mb-2 mr-2 border-0">'+provinzenChina[i].cn+'</button>');
+			}
+		});
+
+		$(document).on('click', '.geburtsort', function(event){
+			console.log(provinzenChina[$(this).data('id')]);
+			$(".geburtsort").removeClass("d-none");
+			$("#geburtsort_cn").text("出生地：" + provinzenChina[$(this).data('id')]["cn"]);
+			let str = provinzenChina[$(this).data('id')]["en"];
+			if(str != "NEI MONGOL"){
+				str = str.charAt(0).toUpperCase() + str.slice(1).toLowerCase()
+			} else {
+				str = "Nei Mongol";
+			}
+			$("#geburtsort_en").text("Geburtsort: " + str);
+			dataAS['Geburtsort'] = str;
+			console.log("dataAS", dataAS);
+		});
+		
+		$(document).on('click', '#btn_sel_erst_eu_schengen_land', function(event){
+			$("#sel_erst_eu_schengen_land").children('div:first').empty();
+			for(let i=0; i<euUndSchengenLand.length; i++){
+				//console.log(provinzenChina[i]);
+				$("#sel_erst_eu_schengen_land").children('div:first').append('<button data-id="'+ i +'"class="erst_eu_schengen_land badge badge-pill badge-success mb-2 mr-2 border-0">'+euUndSchengenLand[i].cn+'</button>');
+			}
+		});
+		
+		$(document).on('click', '.erst_eu_schengen_land', function(event){
+			console.log(euUndSchengenLand[$(this).data('id')]);
+			$(".erst_eu_schengen_land").removeClass("d-none");
+			$("#erst_eu_schengen_land_cn").text("第一个进入的欧盟/申根国家：" + euUndSchengenLand[$(this).data('id')]["cn"]);
+			$("#erst_eu_schengen_land_de").text("Erstes EU-/Schengenland: " + euUndSchengenLand[$(this).data('id')]["de"]);
+			dataAS['erst_eu_schengen_land'] = euUndSchengenLand[$(this).data('id')]["de"];
+			console.log("dataAS", dataAS);
+			
+			
+		});		
+		
+		
+	});
+	
+	
+	
+	
+	
+
+
+	
+	
+	
+	</script>
+
+</body>
+
+
+
+<footer class="bg-light text-muted py-4 mt-auto border-top">
+  <div class="container">
+    <div class="row align-items-center">
+      <div class="col-md-6 text-center text-md-start">
+        <p class="mb-0">
+          &copy; 2026 produced by Kai. Copyright free for staff of LEA Bochum.
+        </p>
+      </div>
+		
+	</div>
+
+  </div>
+</footer>	
+
+
+</html>
