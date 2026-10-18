@@ -270,7 +270,7 @@
 	<div class="jumbotron jumbotron-fluid">
 		<div class="container-fluid">
 			
-			<h3>Erfassung Grunddaten chinesischer Antragsteller</h3>
+			<h3>Erfassung Grunddaten CN AS</h3>
 			<div class="p-2 mb-2">
 				<h4>1.姓名/Name</h4>
 				<h5>请用简体中文在方框中写入姓名</h5>
@@ -389,31 +389,31 @@
 			</div>	
 			
 			
-			<div class="p-2 mb-2 " id="einreisesatum_eu">
+			<div class="p-2 mb-2 d-none" id="einreisedatum_eu">
 				<h4>6.入境第一个欧盟/申根国家的日期 Einreisedatum in erstes eingereistes EU-/Schengen-Land</h4>
 				<div class="form-row">
 					<div class="col-4">
-						<select class="selYear einreisesatum_eu form-control" >
+						<select class="selYear einreisedatum_eu form-control" >
 							<option value="" selected disabled hidden>年/Jahr</option>
 						</select>
 					</div>
 					<div class="col-4">
-						<select class="selMonth einreisesatum_eu form-control">
+						<select class="selMonth einreisedatum_eu form-control">
 							<option value="" selected disabled hidden>月/Monat</option>
 						</select>
 					</div>
 					<div class="col-4">
-						<select class="selDay einreisesatum_eu form-control">
+						<select class="selDay einreisedatum_eu form-control">
 							<option value=""  selected disabled hidden>日/Tag</option>
 						</select>
 					</div>
 				</div>
 				<div class="">
-					<button type="button" class="btn btn-primary datum_loeschen einreisesatum_eu" style="">Löschen</button>
+					<button type="button" class="btn btn-primary datum_loeschen einreisedatum_eu" style="">Löschen</button>
 				</div>
-				<div class="einreisesatum_eu show d-none">
-					<div id="einreisesatum_eu_cn" class="col-sm-6 col-md-4">入境第一个欧盟/申根国家的日期 ：</div>
-					<div id="einreisesatum_eu_de" class="col-sm-6 col-md-8">Einreisedatum in erstes eingereistes EU-/Schengen-Land: </div>
+				<div class="einreisedatum_eu show d-none">
+					<div id="einreisedatum_eu_cn" class="col-sm-6 col-md-4">入境第一个欧盟/申根国家的日期 ：</div>
+					<div id="einreisedatum_eu_de" class="col-sm-6 col-md-8">Einreisedatum in erstes eingereistes EU-/Schengen-Land: </div>
 				</div>
 			</div>		
 			
@@ -592,8 +592,10 @@
 			if($(this).hasClass(datumTyp)){
 				$("div.show."+datumTyp).removeClass("d-none");
 				let txtPreDatumCN = $("#"+datumTyp+"_cn").text().substring(0, $("#"+datumTyp+"_cn").text().indexOf("：")+1);
+				console.log("txtPreDatumCN", txtPreDatumCN);
 				$("#"+datumTyp+"_cn").text(txtPreDatumCN + selYearElement.val()+"年"+selMonthElement.val()+"月"+$(this).val()+"日");
 				let txtPreDatumDE = $("#"+datumTyp+"_de").text().substring(0, $("#"+datumTyp+"_de").text().indexOf(":")+1);
+				console.log("txtPreDatumDE", txtPreDatumDE);
 				$("#"+datumTyp+"_de").text(txtPreDatumDE + " "+ $(this).val()+"."+selMonthElement.val()+"."+selYearElement.val());
 				dataAS[datumTyp] = $(this).val()+"."+selMonthElement.val()+"."+selYearElement.val();
 			}
@@ -661,8 +663,17 @@
 			dataAS['erst_eu_schengen_land'] = euUndSchengenLand[$(this).data('id')]["de"];
 			console.log("dataAS", dataAS);
 			
+			$("#einreisedatum_eu").removeClass("d-none");
+			$("#einreisedatum_eu").children().first().text(
+				"6.入境" + euUndSchengenLand[$(this).data('id')]["cn"] + "的日期" +
+				"Einreisedatum in " + euUndSchengenLand[$(this).data('id')]["de"]
+			);
+			$("#einreisedatum_eu_cn").text("入境"+ euUndSchengenLand[$(this).data('id')]["cn"] +"的日期：");
+			$("#einreisedatum_eu_de").text("Einreisedatum in "+ euUndSchengenLand[$(this).data('id')]["de"] +": ");
 			
-		});		
+			$('.datum_loeschen.einreisedatum_eu').click();
+			
+		});
 		
 		
 	});
