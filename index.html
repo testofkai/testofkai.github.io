@@ -331,9 +331,9 @@
 			<div class="p-2 mb-2">
 				<h4>3.出生地（只选省份） Geburtsort</h4>
 
-				<button id="btn_sel_geburtsort" type="button" class="btn btn-primary" data-toggle="collapse" data-target="#sel_geburtsort" >请选择出生地 / Geburtsort auswählen</button>
+				<button id="btn_geburtsort" type="button" class="btn btn-primary" data-toggle="collapse" data-target="#geburtsort" >请选择出生地 / Geburtsort auswählen</button>
 			
-				<div id="sel_geburtsort" class="collapse">
+				<div id="geburtsort" class="collapse">
 					<div class="collapse d-flex flex-wrap align-items-center mt-3">
 					</div>
 				</div>
@@ -376,9 +376,9 @@
 			<div class="p-2 mb-2">
 				<h4>5.您到达德国的旅途中，第一个进入的欧盟/申根国家是哪个？In welches EU-/Schengen-Land sind Sie auf Ihrer Reise nach Deutschland ZUERST eingereist?</h4>
 
-				<button id="btn_sel_erst_eu_schengen_land" type="button" class="btn btn-primary" data-toggle="collapse" data-target="#sel_erst_eu_schengen_land" >请选择第一个进入的欧盟/申根国家 EU-/Schengenland auswählen</button>
+				<button id="btn_erst_eu_schengen_land" type="button" class="btn btn-primary" data-toggle="collapse" data-target="#erst_eu_schengen_land" >请选择第一个进入的欧盟/申根国家 EU-/Schengenland auswählen</button>
 			
-				<div id="sel_erst_eu_schengen_land" class="collapse">
+				<div id="erst_eu_schengen_land" class="collapse">
 					<div class="collapse d-flex flex-wrap align-items-center mt-3">
 					</div>
 				</div>
@@ -418,6 +418,24 @@
 			</div>		
 			
 			
+			<div class="p-2 mb-2">
+				<h4>7.申请庇护的理由 Begründung des Asylantrags</h4>
+
+				<button id="btn_begruendung" type="button" class="btn btn-primary" data-toggle="collapse" data-target="#begruendung" >选择一个庇护理由 eine Begründung auswählen</button>
+			
+				<div id="begruendung" class="collapse">
+					<div class="collapse d-flex flex-wrap align-items-center mt-3">
+					</div>
+				</div>
+				<div class="d-none begruendung">
+					<div id="begruendung_cn" class="col-sm-6 col-md-4"></div>
+					<div id="begruendung_de" class="col-sm-6 col-md-8"></div>
+				</div>
+			</div>	
+			
+			
+			
+			
 			
 			
 		</div>
@@ -452,6 +470,13 @@
 			{"de":"Litauen", "cn":"立陶宛"}, {"de":"Zypern", "cn":"塞浦路斯"}, {"de":"Irland", "cn":"爱尔兰"},
 			
 	];
+	
+	var begruendung = [ {"cn":"我欠债", "de":"Ich schulde jemandem Geld."}, {"cn":"我无业且没有收入", "de":"Ich bin arbeitslos und habe keine Einkommensquelle."}, {"cn":"我破产了", "de":"Ich bin  bankrott."}, 
+		{"cn":"我受家庭暴力", "de":"Ich bin Opfer häuslicher Gewalt."}, {"cn":"我被家庭抛弃", "de":"Ich wurde aus meiner Familie geworfen."}, {"cn":"我受某人威胁", "de":"Ich wurde von jemanden bedroht."},
+		{"cn":"我因宗教信仰被迫害", "de":"Ich werde von der Religion verfolgt."}, {"cn":"我受政治迫害", "de":"Ich wurde aus politischen Gründen verfolgt."}, {"cn":"我受政府不公对待", "de":"Ich wurde von der Behörde ungerecht behandelt."},
+		{"cn":"因为性倾向", "de":"wegen sexueller Orientierung"}, {"cn":"我渴望在德国生活", "de":"Ich wünsche in Deutschland zu leben"}, {"cn":"其他", "de":"anderes"},
+	];
+	
 	
 	var dataAS = {};
 	const canvasElement = document.getElementById('canvas');
@@ -624,11 +649,11 @@
 			console.log("dataAS", dataAS);
 		});	
 
-		$(document).on('click', '#btn_sel_geburtsort', function(event){
-			$("#sel_geburtsort").children('div:first').empty();
+		$(document).on('click', '#btn_geburtsort', function(event){
+			$("#geburtsort").children('div:first').empty();
 			for(let i=0; i<provinzenChina.length; i++){
 				//console.log(provinzenChina[i]);
-				$("#sel_geburtsort").children('div:first').append('<button data-id="'+ i +'"class="geburtsort badge badge-pill badge-secondary mb-2 mr-2 border-0">'+provinzenChina[i].cn+'</button>');
+				$("#geburtsort").children('div:first').append('<button data-id="'+ i +'"class="geburtsort badge badge-pill badge-secondary mb-2 mr-2 border-0">'+provinzenChina[i].cn+'</button>');
 			}
 		});
 
@@ -647,11 +672,11 @@
 			console.log("dataAS", dataAS);
 		});
 		
-		$(document).on('click', '#btn_sel_erst_eu_schengen_land', function(event){
-			$("#sel_erst_eu_schengen_land").children('div:first').empty();
+		$(document).on('click', '#btn_erst_eu_schengen_land', function(event){
+			$("#erst_eu_schengen_land").children('div:first').empty();
 			for(let i=0; i<euUndSchengenLand.length; i++){
 				//console.log(provinzenChina[i]);
-				$("#sel_erst_eu_schengen_land").children('div:first').append('<button data-id="'+ i +'"class="erst_eu_schengen_land badge badge-pill badge-success mb-2 mr-2 border-0">'+euUndSchengenLand[i].cn+'</button>');
+				$("#erst_eu_schengen_land").children('div:first').append('<button data-id="'+ i +'"class="erst_eu_schengen_land badge badge-pill badge-success mb-2 mr-2 border-0">'+euUndSchengenLand[i].cn+'</button>');
 			}
 		});
 		
@@ -674,6 +699,25 @@
 			$('.datum_loeschen.einreisedatum_eu').click();
 			
 		});
+		
+		$(document).on('click', '#btn_begruendung', function(event){
+			$("#begruendung").children('div:first').empty();
+			for(let i=0; i<begruendung.length; i++){;
+				$("#begruendung").children('div:first').append('<button data-id="'+ i +'"class="begruendung badge badge-pill badge-warning mb-2 mr-2 border-0">'+begruendung[i].cn+'</button>');
+			}
+		});
+		
+		$(document).on('click', '.begruendung', function(event){
+			console.log(provinzenChina[$(this).data('id')]);
+			$(".begruendung").removeClass("d-none");
+			$("#begruendung_cn").text("庇护理由：" + begruendung[$(this).data('id')]["cn"]);
+			$("#begruendung_de").text("Begründung: " + begruendung[$(this).data('id')]["de"]);
+			dataAS['Begründung'] = begruendung[$(this).data('id')]["de"];
+			console.log("dataAS", dataAS);
+		});
+		
+		
+		
 		
 		
 	});
